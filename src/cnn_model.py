@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models, transforms
+from torchvision.models import ResNet18_Weights
 from PIL import Image
 import numpy as np
 from pathlib import Path
@@ -63,18 +64,19 @@ class DefectCNN(nn.Module):
     Outputs both classification logits and defect probability.
     """
     
-    def __init__(self, num_classes: int = 6, pretrained: bool = True):
+    def __init__(self, num_classes: int = 6, use_pretrained: bool = True):
         """
         Initialize the CNN.
         
         Args:
             num_classes: Number of defect classes
-            pretrained: Whether to use pretrained ResNet weights
+            use_pretrained: Whether to use pretrained ResNet weights
         """
         super(DefectCNN, self).__init__()
         
-        # Load ResNet18 backbone
-        self.backbone = models.resnet18(pretrained=pretrained)
+        # Load ResNet18 backbone with proper weights parameter
+        weights = ResNet18_Weights.IMAGENET1K_V1 if use_pretrained else None
+        self.backbone = models.resnet18(weights=weights)
         
         # Get number of features from backbone
         num_features = self.backbone.fc.in_features
@@ -318,7 +320,7 @@ class DefectCNNTrainer:
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode='min', factor=0.5, patience=3, verbose=True
+            optimizer, mode='min', factor=0.5, patience=3
         )
         
         best_val_acc = 0.0

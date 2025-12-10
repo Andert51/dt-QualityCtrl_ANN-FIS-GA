@@ -104,7 +104,7 @@ class VisualizationHub:
         ax3.legend(fontsize=10, framealpha=0.8)
         ax3.grid(True, alpha=0.3, linestyle='--')
         
-        plt.suptitle('🧠 CNN Training Analytics', fontsize=18, fontweight='bold', 
+        plt.suptitle('CNN Training Analytics', fontsize=18, fontweight='bold', 
                     color=self.colors['cyan'], y=1.02)
         
         plt.savefig(self.output_dir / save_name, dpi=300, bbox_inches='tight', facecolor='#0a0a0a')
@@ -136,7 +136,7 @@ class VisualizationHub:
         
         ax.set_xlabel('Predicted Class', fontsize=14, fontweight='bold', color=self.colors['cyan'])
         ax.set_ylabel('True Class', fontsize=14, fontweight='bold', color=self.colors['cyan'])
-        ax.set_title('🎯 Confusion Matrix', fontsize=16, fontweight='bold', 
+        ax.set_title('Confusion Matrix', fontsize=16, fontweight='bold', 
                     color=self.colors['yellow'], pad=20)
         
         # Rotate labels
@@ -206,8 +206,8 @@ class VisualizationHub:
         nx.draw_networkx_labels(G, pos, font_size=9, font_weight='bold', 
                                font_color='white', ax=ax)
         
-        ax.set_title('🕸️ CNN Network Topology (ResNet18 Backbone)', 
-                    fontsize=16, fontweight='bold', color=self.colors['yellow'], pad=20)
+        ax.set_title('CNN Network Topology (ResNet18 Backbone)', 
+                    fontsize=16, fontweight='bold', color=self.colors['cyan'], pad=20)
         ax.axis('off')
         
         plt.tight_layout()
@@ -264,7 +264,7 @@ class VisualizationHub:
                 ax.axis('off')
                 plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         
-        plt.suptitle('🔥 CNN Activation Heatmaps', fontsize=18, fontweight='bold', 
+        plt.suptitle('CNN Activation Heatmaps', fontsize=18, fontweight='bold', 
                     color=self.colors['magenta'], y=0.98)
         
         plt.savefig(self.output_dir / save_name, dpi=300, bbox_inches='tight', facecolor='#0a0a0a')
@@ -335,7 +335,7 @@ class VisualizationHub:
         ax3.axvspan(3, 7, alpha=0.2, color=self.colors['yellow'])
         ax3.axvspan(7, 10, alpha=0.2, color=self.colors['red'])
         
-        plt.suptitle('🎛️ Fuzzy Membership Functions', fontsize=18, fontweight='bold', 
+        plt.suptitle('Fuzzy Membership Functions', fontsize=18, fontweight='bold', 
                     color=self.colors['magenta'], y=0.98)
         
         plt.savefig(self.output_dir / save_name, dpi=300, bbox_inches='tight', facecolor='#0a0a0a')
@@ -373,11 +373,13 @@ class VisualizationHub:
             y=Y,
             z=Z,
             colorscale='Viridis',
-            colorbar=dict(title='Severity Score', titleside='right')
+            colorbar=dict(
+                title=dict(text='Severity Score', side='right')
+            )
         )])
         
         fig.update_layout(
-            title='🌐 Fuzzy Decision Surface (3D)',
+            title='Fuzzy Decision Surface (3D)',
             scene=dict(
                 xaxis_title='Defect Probability',
                 yaxis_title='Material Fragility',
@@ -438,7 +440,7 @@ class VisualizationHub:
         ax2.grid(True, alpha=0.3, linestyle='--')
         ax2.fill_between(generations, 0, ga_history['diversity'], alpha=0.3, color=self.colors['magenta'])
         
-        plt.suptitle('🧬 Genetic Algorithm Evolution', fontsize=18, fontweight='bold', 
+        plt.suptitle('Genetic Algorithm Evolution', fontsize=18, fontweight='bold', 
                     color=self.colors['green'], y=1.02)
         
         plt.savefig(self.output_dir / save_name, dpi=300, bbox_inches='tight', facecolor='#0a0a0a')
@@ -506,7 +508,7 @@ class VisualizationHub:
         for idx in range(n_samples, len(axes)):
             axes[idx].axis('off')
         
-        plt.suptitle('🎯 Quality Control Results', fontsize=18, fontweight='bold', 
+        plt.suptitle('Quality Control Results', fontsize=18, fontweight='bold', 
                     color=self.colors['cyan'], y=1.0)
         plt.tight_layout()
         
@@ -572,7 +574,7 @@ class VisualizationHub:
         
         ax2.set_title('Train/Val/Test Split', fontsize=14, fontweight='bold', color=self.colors['yellow'])
         
-        plt.suptitle('📊 Dataset Overview', fontsize=18, fontweight='bold', 
+        plt.suptitle('Dataset Overview', fontsize=18, fontweight='bold', 
                     color=self.colors['magenta'], y=1.0)
         
         plt.savefig(self.output_dir / save_name, dpi=300, bbox_inches='tight', facecolor='#0a0a0a')

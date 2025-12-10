@@ -21,6 +21,7 @@ from rich.table import Table
 from rich.layout import Layout
 from rich import box
 from rich.text import Text
+from rich.align import Align
 import pyfiglet
 import questionary
 from questionary import Style
@@ -88,20 +89,24 @@ class CyberCoreQC:
             ('separator', 'fg:#666666'),
             ('instruction', 'fg:#888888'),
         ])
-    
+        
     def show_banner(self):
         """Display cyberpunk ASCII banner."""
         self.console.clear()
         
-        # Create ASCII art banner
-        banner = pyfiglet.figlet_format("CYBERCORE-QC", font="slant")
+        banner = r"""
+       ____      ____              ___ __        ________       __
+  ____/ / /_    / __ \__  ______ _/ (_) /___  __/ ____/ /______/ /
+ / __  / __/   / / / / / / / __ `/ / / __/ / / / /   / __/ ___/ / 
+/ /_/ / /_    / /_/ / /_/ / /_/ / / / /_/ /_/ / /___/ /_/ /  / /  
+\__,_/\__/____\___\_\__,_/\__,_/_/_/\__/\__, /\____/\__/_/  /_/   
+        /_____/                        /____/                     
+        """
         
-        # Color the banner
         banner_text = Text(banner, style="bold cyan")
         
         subtitle = Text(
-            "Hybrid Intelligent Quality Control System\n"
-            "CNN → Fuzzy Logic → Genetic Optimization",
+            "\nHybrid Intelligence AI Lab",
             style="bold magenta",
             justify="center"
         )
@@ -112,16 +117,24 @@ class CyberCoreQC:
             justify="center"
         )
         
-        # Create panel
+        from rich.console import Group
+        content = Align.center(
+            Group(banner_text, subtitle, Text("\n"), info)
+        )
+        
         panel = Panel(
-            banner_text + "\n" + subtitle + "\n\n" + info,
+            content,
             border_style="bright_cyan",
             box=box.DOUBLE_EDGE,
-            padding=(1, 2)
+            padding=(1, 2),
+            title="[bold dim]v1.0[/]",
+            title_align="right"
         )
         
         self.console.print(panel)
         self.console.print()
+    
+   
     
     def show_status_dashboard(self):
         """Display system status dashboard."""
@@ -132,25 +145,25 @@ class CyberCoreQC:
         table.add_column("Details", style="dim")
         
         # CNN Status
-        cnn_status = "✅ Loaded" if self.cnn_model else "⚠️  Not Initialized"
+        cnn_status = "Loaded" if self.cnn_model else "Not Initialized"
         cnn_color = "green" if self.cnn_model else "yellow"
         table.add_row("CNN Model", f"[{cnn_color}]{cnn_status}[/{cnn_color}]", 
                      f"ResNet18 Backbone" if self.cnn_model else "—")
         
         # FIS Status
-        fis_status = "✅ Ready" if self.fis else "⚠️  Not Initialized"
+        fis_status = "Ready" if self.fis else "Not Initialized"
         fis_color = "green" if self.fis else "yellow"
         table.add_row("Fuzzy System", f"[{fis_color}]{fis_status}[/{fis_color}]", 
                      "6 Input MFs, 3 Output MFs" if self.fis else "—")
         
         # Dataset Status
-        dataset_status = "✅ Loaded" if self.dataset_metadata else "⚠️  Not Loaded"
+        dataset_status = "Loaded" if self.dataset_metadata else "Not Loaded"
         dataset_color = "green" if self.dataset_metadata else "yellow"
         dataset_detail = f"{self.dataset_metadata['total_samples']} samples" if self.dataset_metadata else "—"
         table.add_row("Dataset", f"[{dataset_color}]{dataset_status}[/{dataset_color}]", dataset_detail)
         
         # Visualization Hub
-        viz_status = "✅ Active" if self.viz_hub else "⚠️  Inactive"
+        viz_status = "Active" if self.viz_hub else "Inactive"
         viz_color = "green" if self.viz_hub else "yellow"
         table.add_row("Viz Hub", f"[{viz_color}]{viz_status}[/{viz_color}]", 
                      str(self.viz_dir) if self.viz_hub else "—")
@@ -202,7 +215,7 @@ class CyberCoreQC:
             
             # Initialize CNN
             progress.update(task1, description="[cyan]Initializing CNN...")
-            self.cnn_model = DefectCNN(num_classes=6, pretrained=True)
+            self.cnn_model = DefectCNN(num_classes=6, use_pretrained=True)
             self.cnn_trainer = DefectCNNTrainer(self.cnn_model, device=self.device)
             progress.advance(task1)
             
