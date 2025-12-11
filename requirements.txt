@@ -3,9 +3,26 @@ numpy>=1.24.0
 pandas>=2.0.0
 scipy>=1.11.0
 
-# Machine Learning & Neural Networks
-torch>=2.0.0
-torchvision>=0.15.0
+# ========================================
+# GPU-ACCELERATED DEEP LEARNING
+# ========================================
+# Para instalar PyTorch con soporte CUDA (GPU), ejecuta:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# IMPORTANTE: NO uses "pip install -r requirements.txt" directamente
+# Primero instala PyTorch con CUDA usando el comando de arriba
+# Luego instala el resto: pip install -r requirements.txt
+#
+# Si solo tienes CPU (sin GPU), usa:
+# pip install torch torchvision torchaudio
+#
+# Verificar instalación GPU:
+# python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+# ========================================
+
+# Machine Learning (se instalará con PyTorch arriba)
+# torch>=2.0.0  # INSTALAR CON COMANDO CUDA DE ARRIBA
+# torchvision>=0.15.0  # INSTALAR CON COMANDO CUDA DE ARRIBA
 scikit-learn>=1.3.0
 
 # Fuzzy Logic
@@ -40,6 +57,7 @@ python-dotenv>=1.0.0
 questionary>=2.0.0
 kaggle>=1.5.16
 requests>=2.31.0
+psutil>=5.9.0  # System resource monitoring
 
 # Development & Testing
 pytest>=7.4.0
@@ -47,3 +65,5 @@ pytest-cov>=4.1.0
 black>=23.7.0
 flake8>=6.1.0
 mypy>=1.5.0
+
+psutils   # System resource monitoring

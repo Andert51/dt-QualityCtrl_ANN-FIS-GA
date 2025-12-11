@@ -1,0 +1,47 @@
+[
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Scratches\\scratches_17.jpg",
+    "true_class": "Scratches",
+    "pred_class": "Scratches",
+    "defect_prob": 1.0,
+    "severity_score": 8.947641225560956,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Scratches\\scratches_300.jpg",
+    "true_class": "Scratches",
+    "pred_class": "Scratches",
+    "defect_prob": 0.9999988079071045,
+    "severity_score": 8.68807827620253,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Scratches\\scratches_250.jpg",
+    "true_class": "Scratches",
+    "pred_class": "Scratches",
+    "defect_prob": 0.9999545812606812,
+    "severity_score": 8.821774727474189,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Scratches\\scratches_279.jpg",
+    "true_class": "Scratches",
+    "pred_class": "Scratches",
+    "defect_prob": 0.9999964237213135,
+    "severity_score": 8.854661200928522,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Crazing\\crazing_115.jpg",
+    "true_class": "Crazing",
+    "pred_class": "Crazing",
+    "defect_prob": 1.8225455278297886e-05,
+    "severity_score": 3.168199367561266,
+    "decision": "INSPECT",
+    "correct": true
+  }
+]

@@ -38,10 +38,10 @@ ENV/
 *.ipynb
 
 # Data & Models
-input/dataset/
-output/models/*.pth
-output/models/*.pkl
-output/results/
+# input/dataset/
+# output/models/*.pth
+# output/models/*.pkl
+# output/results/
 
 # OS
 .DS_Store

@@ -8,6 +8,8 @@ Version: 1.0.0
 """
 
 import sys
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend to prevent Tcl threading errors
 import torch
 import numpy as np
 import pandas as pd
@@ -30,11 +32,18 @@ from questionary import Style
 # Import custom modules
 sys.path.append(str(Path(__file__).parent / 'src'))
 from data_generator import SyntheticDefectGenerator
-from cnn_model import DefectCNN, DefectCNNTrainer, DefectDataset, get_data_transforms
+from cnn_model import DefectCNN, DefectDataset, get_data_transforms
 from fuzzy_system import FuzzyQualityController
 from genetic_algorithm import GeneticAlgorithm
 from visualizations import VisualizationHub
 from kaggle_loader import KaggleDatasetLoader
+
+# Import enhanced components
+from enhanced_trainer import EnhancedCNNTrainer
+from enhanced_ga import EnhancedGeneticOptimizer
+from enhanced_visualizations import AnimatedVisualizer
+from validation import SystemValidator, DataValidator, ConfigValidator
+from logger import initialize_logging, get_logger
 
 
 class CyberCoreQC:
@@ -51,7 +60,18 @@ class CyberCoreQC:
             workspace_dir: Root workspace directory
         """
         self.workspace_dir = Path(workspace_dir)
-        self.console = Console()
+        
+        # Force UTF-8 encoding for Windows compatibility with Unicode characters
+        import io
+        if sys.platform == 'win32':
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        
+        self.console = Console(force_terminal=True, legacy_windows=False)
+        
+        # Initialize logging
+        initialize_logging(self.workspace_dir / 'logs')
+        self.logger = get_logger('CyberCoreQC')
         
         # Directory structure
         self.input_dir = self.workspace_dir / 'input' / 'dataset'
@@ -64,11 +84,19 @@ class CyberCoreQC:
         for d in [self.input_dir, self.models_dir, self.results_dir, self.viz_dir]:
             d.mkdir(parents=True, exist_ok=True)
         
+        # Validators
+        self.system_validator = SystemValidator(self.console)
+        self.data_validator = DataValidator()
+        self.config_validator = ConfigValidator()
+        
+        # Animated visualizer
+        self.animator = AnimatedVisualizer(self.viz_dir)
+        
         # System components
         self.cnn_model: Optional[DefectCNN] = None
-        self.cnn_trainer: Optional[DefectCNNTrainer] = None
+        self.cnn_trainer: Optional[EnhancedCNNTrainer] = None
         self.fis: Optional[FuzzyQualityController] = None
-        self.ga: Optional[GeneticAlgorithm] = None
+        self.ga: Optional[EnhancedGeneticOptimizer] = None
         self.viz_hub: Optional[VisualizationHub] = None
         
         # Data
@@ -77,8 +105,14 @@ class CyberCoreQC:
         self.val_loader: Optional[torch.utils.data.DataLoader] = None
         self.test_loader: Optional[torch.utils.data.DataLoader] = None
         
-        # Device
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Device - será configurado por usuario
+        self.device = None
+        self.use_gpu = torch.cuda.is_available()
+        
+        if self.use_gpu:
+            self.logger.info(f"GPU disponible: {torch.cuda.get_device_name(0)}")
+        else:
+            self.logger.info("GPU no disponible, usando CPU")
         
         # Cyberpunk style for questionary
         self.custom_style = Style([
@@ -113,8 +147,17 @@ class CyberCoreQC:
             justify="center"
         )
         
+        # Device info
+        if self.device is None:
+            device_str = "Not Configured"
+        elif self.device == 'cuda':
+            gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CUDA"
+            device_str = f"GPU ({gpu_name})"
+        else:
+            device_str = "CPU"
+        
         info = Text(
-            f"Device: {self.device.upper()} | PyTorch {torch.__version__} | Scikit-Fuzzy Ready",
+            f"Device: {device_str} | PyTorch {torch.__version__} | Scikit-Fuzzy Ready",
             style="dim yellow",
             justify="center"
         )
@@ -210,18 +253,18 @@ class CyberCoreQC:
                     
                     if self.dataset_metadata:
                         dataset_loaded = True
-                        self.console.print(f"✅ [green]Loaded Kaggle dataset: {kaggle_dataset}")
+                        self.console.print(f" [green]Loaded Kaggle dataset: {kaggle_dataset}")
                     else:
-                        self.console.print(f"⚠️ [yellow]Failed to load Kaggle dataset, falling back to synthetic")
+                        self.console.print(f" [yellow]Failed to load Kaggle dataset, falling back to synthetic")
                 except Exception as e:
-                    self.console.print(f"⚠️ [yellow]Kaggle load error: {e}, using synthetic data")
+                    self.console.print(f" [yellow]Kaggle load error: {e}, using synthetic data")
             
             # Try existing metadata
             if not dataset_loaded and metadata_path.exists():
                 with open(metadata_path, 'r') as f:
                     self.dataset_metadata = json.load(f)
                 dataset_loaded = True
-                self.console.print("✅ [green]Loaded existing dataset metadata")
+                self.console.print(" [green]Loaded existing dataset metadata")
             
             # Generate synthetic dataset as fallback
             if not dataset_loaded:
@@ -232,19 +275,30 @@ class CyberCoreQC:
                     samples_per_class=100,
                     split_ratios=(0.7, 0.15, 0.15)
                 )
-                self.console.print("✅ [green]Generated synthetic dataset")
+                self.console.print(" [green]Generated synthetic dataset")
             
             progress.advance(task1)
             
             # Load data into PyTorch
             progress.update(task1, description="[cyan]Creating data loaders...")
+            
+            # Seleccionar dispositivo
+            if self.device is None:
+                self._select_device()
+            
             self._create_data_loaders()
             progress.advance(task1)
             
             # Initialize CNN
             progress.update(task1, description="[cyan]Initializing CNN...")
             self.cnn_model = DefectCNN(num_classes=6, use_pretrained=True)
-            self.cnn_trainer = DefectCNNTrainer(self.cnn_model, device=self.device)
+            self.cnn_trainer = EnhancedCNNTrainer(
+                self.cnn_model, 
+                device=self.device,
+                console=self.console,
+                enable_validation=True,
+                enable_logging=True
+            )
             progress.advance(task1)
             
             # Initialize FIS
@@ -252,11 +306,62 @@ class CyberCoreQC:
             self.fis = FuzzyQualityController()
             progress.advance(task1)
         
-        self.console.print("\n✨ [bold green]System Initialized Successfully!")
+        self.console.print("\n [bold green]System Initialized Successfully!")
         
         # Show dataset overview visualization
         if self.viz_hub and self.dataset_metadata:
             self.viz_hub.plot_dataset_overview(self.dataset_metadata)
+    
+    def _select_device(self):
+        """Seleccionar dispositivo de cómputo (GPU/CPU)."""
+        if not self.use_gpu:
+            self.device = 'cpu'
+            self.console.print("\n[yellow]  GPU no disponible, usando CPU[/yellow]")
+            return
+        
+        # Mostrar información de GPU
+        from gpu_optimizer import GPUOptimizer
+        gpu_opt = GPUOptimizer()
+        
+        self.console.print("\n" + "="*60)
+        self.console.print("[bold cyan]🎮 CONFIGURACIÓN DE DISPOSITIVO[/bold cyan]")
+        self.console.print("="*60)
+        
+        # Info de GPU
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+        
+        self.console.print(f"\n[green] GPU Detectada:[/green] {gpu_name}")
+        self.console.print(f"[cyan]   Memoria Total:[/cyan] {gpu_memory:.2f} GB")
+        self.console.print(f"[cyan]   CUDA Version:[/cyan] {torch.version.cuda}")
+        
+        # Estimación de velocidad
+        self.console.print("\n[bold yellow]📊 Estimación de Rendimiento:[/bold yellow]")
+        self.console.print("[green]   GPU:[/green] ~10-50x más rápido que CPU")
+        self.console.print("[green]   Batch size:[/green] 64-128 (vs 32 en CPU)")
+        self.console.print("[green]   Mixed Precision:[/green] FP16 habilitado (2x boost)")
+        
+        # Selección
+        choices = [
+            "🚀 GPU (Recomendado - Mucho más rápido)",
+            "🐌 CPU (Solo para debugging)"
+        ]
+        
+        choice = questionary.select(
+            "\nSelecciona dispositivo de cómputo:",
+            choices=choices,
+            style=self.custom_style
+        ).ask()
+        
+        if "GPU" in choice:
+            self.device = 'cuda'
+            self.console.print("\n[bold green] Modo GPU activado - Entrenamiento acelerado[/bold green]")
+            gpu_opt.print_gpu_info()
+        else:
+            self.device = 'cpu'
+            self.console.print("\n[yellow]  Modo CPU seleccionado - Entrenamiento lento[/yellow]")
+        
+        self.logger.info(f"Device selected: {self.device}")
     
     def _create_data_loaders(self):
         """Create PyTorch data loaders from dataset."""
@@ -296,22 +401,49 @@ class CyberCoreQC:
             severity_scores=splits_data['test']['severities']
         )
         
-        # Create data loaders
+        # Create data loaders with GPU optimization
+        from gpu_optimizer import GPUOptimizer
+        gpu_opt = GPUOptimizer()
+        gpu_config = gpu_opt.get_gpu_recommendations()
+        
+        num_workers = gpu_config['num_workers']
+        pin_memory = gpu_config['pin_memory']
+        batch_size = gpu_config['batch_size']
+        
+        self.console.print(f"[cyan]⚡ DataLoader config: batch_size={batch_size}, workers={num_workers}, pin_memory={pin_memory}[/cyan]")
+        
         self.train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=16, shuffle=True, num_workers=0
+            train_dataset, 
+            batch_size=batch_size, 
+            shuffle=True, 
+            num_workers=num_workers,
+            pin_memory=pin_memory
         )
         self.val_loader = torch.utils.data.DataLoader(
-            val_dataset, batch_size=16, shuffle=False, num_workers=0
+            val_dataset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            num_workers=num_workers,
+            pin_memory=pin_memory
         )
         self.test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=16, shuffle=False, num_workers=0
+            test_dataset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            num_workers=num_workers,
+            pin_memory=pin_memory
         )
     
     def train_cnn(self):
         """Train the CNN model."""
         self.console.print("\n[bold cyan]╔══════════════════════════════════════════════╗")
-        self.console.print("[bold cyan]║     🧠 CNN TRAINING SEQUENCE INITIATED      ║")
+        self.console.print("[bold cyan]║        CNN TRAINING SEQUENCE INITIATED       ║")
         self.console.print("[bold cyan]╚══════════════════════════════════════════════╝\n")
+        
+        # Show GPU info if available
+        if torch.cuda.is_available():
+            from gpu_optimizer import GPUOptimizer
+            GPUOptimizer.print_gpu_info()
         
         # Training parameters
         epochs = questionary.text(
@@ -339,6 +471,13 @@ class CyberCoreQC:
         self.viz_hub.plot_training_curves(history)
         self.viz_hub.plot_network_topology(self.cnn_model)
         
+        # Create animated training GIF
+        self.console.print("\n[cyan]Creating animated training visualization...")
+        self.animator.create_training_animation(history, 'training_animation.gif')
+        
+        # Create detailed metrics plot
+        self.animator.create_detailed_metrics_plot(history, 'detailed_metrics.png')
+        
         # Validation predictions for confusion matrix
         val_metrics = self.cnn_trainer.validate(self.val_loader)
         
@@ -356,42 +495,70 @@ class CyberCoreQC:
             class_names
         )
         
-        self.console.print("✅ [green]CNN training complete and visualizations saved!")
+        self.console.print(" [green]CNN training complete and visualizations saved!")
     
     def run_genetic_optimization(self):
         """Run genetic algorithm to optimize FIS parameters."""
         self.console.print("\n[bold magenta]╔══════════════════════════════════════════════╗")
-        self.console.print("[bold magenta]║    🧬 GENETIC OPTIMIZATION INITIATED        ║")
+        self.console.print("[bold magenta]║        GENETIC OPTIMIZATION INITIATED        ║")
         self.console.print("[bold magenta]╚══════════════════════════════════════════════╝\n")
         
         # Ensure CNN is trained
         if not self.cnn_model:
-            self.console.print("[red]⚠️  CNN not initialized. Please train CNN first.")
+            self.console.print("[red]  CNN not initialized. Please train CNN first.")
             return
         
-        # Get validation predictions from CNN
+        # Get validation predictions from CNN (use subset for faster GA)
         self.console.print("[cyan]Collecting CNN predictions for optimization...")
         self.cnn_model.eval()
         
         defect_probs = []
         true_labels = []
         
+        # Use only first 100 samples for GA optimization (much faster)
+        max_samples = 100
+        sample_count = 0
+        
         with torch.no_grad():
             for images, labels, severities, _ in self.val_loader:
                 images = images.to(self.device)
-                _, defect_prob = self.cnn_model(images)
+                _, defect_logits = self.cnn_model(images)
+                # Convert logits to probabilities using sigmoid
+                defect_prob = torch.sigmoid(defect_logits)
                 defect_probs.extend(defect_prob.cpu().numpy().flatten())
                 true_labels.extend(labels.numpy())
+                
+                sample_count += len(labels)
+                if sample_count >= max_samples:
+                    # Trim to exact count
+                    defect_probs = defect_probs[:max_samples]
+                    true_labels = true_labels[:max_samples]
+                    break
+        
+        self.console.print(f"[green]Using {len(defect_probs)} samples for optimization (faster convergence)")
         
         # Simulate material fragility (in real scenario, would come from sensors)
         material_fragilities = np.random.uniform(0.2, 0.8, len(defect_probs))
         
         # Define fitness function
-        def fitness_function(chromosome: Dict) -> float:
+        def fitness_function(params: np.ndarray) -> float:
             """
             Evaluate fitness of FIS parameters.
             Higher accuracy = higher fitness.
             """
+            # Convert numpy array to chromosome dict
+            chromosome = {
+                'defect_low': (params[0], params[1], params[2]),
+                'defect_medium': (params[3], params[4], params[5]),
+                'defect_high': (params[6], params[7], params[8]),
+                'frag_low': (params[9], params[10], params[11]),
+                'frag_medium': (params[12], params[13], params[14]),
+                'frag_high': (params[15], params[16], params[17]),
+                'sev_low': (params[18], params[19], params[20]),
+                'sev_medium': (params[21], params[22], params[23]),
+                'sev_high': (params[24], params[25], params[26])
+            }
+            
             # Create temporary FIS with these parameters
             temp_fis = FuzzyQualityController()
             temp_fis.update_from_triangular_params(chromosome)
@@ -407,16 +574,16 @@ class CyberCoreQC:
                     
                     # Ground truth: if true_label > 0, it should be rework or reject
                     if true_label == 0:  # Normal
-                        expected_decision = 'Accept'
-                    elif severity < 0.5:  # Low severity defects
-                        expected_decision = 'Rework'
+                        expected_decision = 'PASS'
+                    elif severity < 5:  # Low severity defects
+                        expected_decision = 'INSPECT'
                     else:
-                        expected_decision = 'Reject'
+                        expected_decision = 'REJECT'
                     
                     # Simple accuracy metric
-                    if true_label == 0 and result['decision'] == 'Accept':
+                    if true_label == 0 and result['decision'] == 'PASS':
                         correct += 1
-                    elif true_label > 0 and result['decision'] != 'Accept':
+                    elif true_label > 0 and result['decision'] != 'PASS':
                         correct += 1
                 except:
                     pass
@@ -424,16 +591,45 @@ class CyberCoreQC:
             accuracy = correct / total if total > 0 else 0.0
             return accuracy
         
-        # Initialize and run GA
-        self.ga = GeneticAlgorithm(
-            population_size=40,
-            generations=50,
+        # Parameter bounds for GA (27 parameters total: 9 membership functions x 3 points each)
+        bounds = [(0, 0.3)] * 3 + [(0.2, 0.6)] * 3 + [(0.5, 1.0)] * 3  # Defect probability
+        bounds += [(0, 0.3)] * 3 + [(0.2, 0.6)] * 3 + [(0.5, 1.0)] * 3  # Material fragility
+        bounds += [(0, 3)] * 3 + [(2, 7)] * 3 + [(6, 10)] * 3  # Severity output
+        
+        # Initialize and run enhanced GA with optimized parameters
+        self.ga = EnhancedGeneticOptimizer(
+            fitness_function=fitness_function,
+            n_params=27,
+            bounds=bounds,
+            population_size=30,  # Reduced for faster execution (40% faster)
+            mutation_rate=0.15,
             crossover_rate=0.8,
-            mutation_rate=0.2,
-            elite_size=5
+            elite_size=5,
+            console=self.console,
+            enable_logging=True,
+            adaptive=True
         )
         
-        best_chromosome = self.ga.evolve(fitness_function, verbose=True)
+        results = self.ga.optimize(
+            n_generations=30,  # Reduced from 50 for faster convergence
+            target_fitness=0.95,
+            patience=10,  # More aggressive early stopping
+            show_animation=True
+        )
+        
+        # Convert best solution back to chromosome dict
+        best_params = results['best_solution']
+        best_chromosome = {
+            'defect_low': (best_params[0], best_params[1], best_params[2]),
+            'defect_medium': (best_params[3], best_params[4], best_params[5]),
+            'defect_high': (best_params[6], best_params[7], best_params[8]),
+            'frag_low': (best_params[9], best_params[10], best_params[11]),
+            'frag_medium': (best_params[12], best_params[13], best_params[14]),
+            'frag_high': (best_params[15], best_params[16], best_params[17]),
+            'sev_low': (best_params[18], best_params[19], best_params[20]),
+            'sev_medium': (best_params[21], best_params[22], best_params[23]),
+            'sev_high': (best_params[24], best_params[25], best_params[26])
+        }
         
         # Update FIS with best parameters
         self.fis.update_from_triangular_params(best_chromosome)
@@ -448,12 +644,21 @@ class CyberCoreQC:
         self.viz_hub.plot_membership_functions(self.fis, save_name="optimized_membership_functions.png")
         self.viz_hub.plot_fuzzy_surface_3d(self.fis)
         
-        self.console.print(f"✅ [green]Genetic optimization complete! Best fitness: {self.ga.best_fitness:.4f}")
+        # Create GA evolution animation
+        self.console.print("\n[cyan]Creating animated GA evolution...")
+        self.animator.create_ga_evolution_animation(
+            generations=list(range(1, len(results['best_fitness_history']) + 1)),
+            best_fitness=results['best_fitness_history'],
+            avg_fitness=results['avg_fitness_history'],
+            diversity=results['diversity_history']
+        )
+        
+        self.console.print(f" [green]Genetic optimization complete! Best fitness: {results['best_fitness']:.4f}")
     
     def visual_analysis_hub(self):
         """Comprehensive visual analysis."""
         self.console.print("\n[bold yellow]╔══════════════════════════════════════════════╗")
-        self.console.print("[bold yellow]║        📊 VISUAL ANALYSIS HUB               ║")
+        self.console.print("[bold yellow]║            VISUAL ANALYSIS HUB               ║")
         self.console.print("[bold yellow]╚══════════════════════════════════════════════╝\n")
         
         options = [
@@ -478,7 +683,7 @@ class CyberCoreQC:
         
         # Ensure models are loaded
         if not self.cnn_model or not self.fis:
-            self.console.print("[red]⚠️  Models not initialized. Please initialize system first.")
+            self.console.print("[red]  Models not initialized. Please initialize system first.")
             return
         
         with Progress(
@@ -509,7 +714,7 @@ class CyberCoreQC:
                 if self.ga and self.ga.history['best_fitness']:
                     self.viz_hub.plot_ga_evolution(self.ga.history)
                 else:
-                    self.console.print("[yellow]⚠️  GA not run yet. Skipping GA visualization.")
+                    self.console.print("[yellow]  GA not run yet. Skipping GA visualization.")
             
             if choice == "Test Results Grid" or choice == "All Visualizations":
                 self._generate_results_grid()
@@ -519,7 +724,7 @@ class CyberCoreQC:
             
             progress.advance(task)
         
-        self.console.print(f"\n✅ [green]Visualizations saved to: {self.viz_dir}")
+        self.console.print(f"\n [green]Visualizations saved to: {self.viz_dir}")
         self.console.print("[dim]You can open the HTML files in a browser for interactive 3D plots.")
     
     def _generate_results_grid(self):
@@ -536,7 +741,9 @@ class CyberCoreQC:
         images = images.to(self.device)
         
         with torch.no_grad():
-            class_logits, defect_probs = self.cnn_model(images)
+            class_logits, defect_logits = self.cnn_model(images)
+            # Convert logits to probabilities using sigmoid
+            defect_probs = torch.sigmoid(defect_logits)
         
         # Make FIS predictions
         for i in range(min(16, len(images))):
@@ -567,39 +774,39 @@ class CyberCoreQC:
             if self.cnn_trainer:
                 cnn_path = self.models_dir / 'best_cnn_model.pth'
                 self.cnn_trainer.save_checkpoint(str(cnn_path))
-                self.console.print(f"✅ [green]Saved CNN to {cnn_path}")
+                self.console.print(f" [green]Saved CNN to {cnn_path}")
             
             # Save FIS
             if self.fis:
                 fis_path = self.models_dir / 'fis_params.pkl'
                 self.fis.save(str(fis_path))
-                self.console.print(f"✅ [green]Saved FIS to {fis_path}")
+                self.console.print(f" [green]Saved FIS to {fis_path}")
             
-            self.console.print("✅ [green]All models saved successfully!")
+            self.console.print(" [green]All models saved successfully!")
         
         elif action == "Load Models":
             # Load CNN
             cnn_path = self.models_dir / 'best_cnn_model.pth'
             if cnn_path.exists() and self.cnn_trainer:
                 self.cnn_trainer.load_checkpoint(str(cnn_path))
-                self.console.print(f"✅ [green]Loaded CNN from {cnn_path}")
+                self.console.print(f" [green]Loaded CNN from {cnn_path}")
             
             # Load FIS
             fis_path = self.models_dir / 'fis_params.pkl'
             if fis_path.exists() and self.fis:
                 self.fis.load(str(fis_path))
-                self.console.print(f"✅ [green]Loaded FIS from {fis_path}")
+                self.console.print(f" [green]Loaded FIS from {fis_path}")
             
-            self.console.print("✅ [green]All models loaded successfully!")
+            self.console.print(" [green]All models loaded successfully!")
     
     def test_realtime_samples(self):
         """Test trained model with real-time sample images."""
         if not self.cnn_model or not self.fis:
-            self.console.print("[red]⚠️  Please initialize and train the system first!")
+            self.console.print("[red]  Please initialize and train the system first!")
             return
         
         self.console.print("\n" + "="*60)
-        self.console.print("[bold cyan]🧪 Real-Time Quality Control Testing")
+        self.console.print("[bold cyan] Real-Time Quality Control Testing")
         self.console.print("="*60 + "\n")
         
         # Ask for test source
@@ -638,9 +845,10 @@ class CyberCoreQC:
                 img_tensor = img_tensor.unsqueeze(0).to(self.device)
                 
                 with torch.no_grad():
-                    class_logits, defect_prob = self.cnn_model(img_tensor)
+                    class_logits, defect_logits = self.cnn_model(img_tensor)
                     pred_class = torch.argmax(class_logits, dim=1).item()
-                    defect_prob = defect_prob.item()
+                    # Convert logits to probability using sigmoid
+                    defect_prob = torch.sigmoid(defect_logits).item()
                 
                 # FIS prediction
                 material_fragility = np.random.uniform(0.3, 0.7)
@@ -663,7 +871,7 @@ class CyberCoreQC:
             ).ask()
             
             if not Path(img_path).exists():
-                self.console.print(f"[red]❌ File not found: {img_path}")
+                self.console.print(f"[red] File not found: {img_path}")
                 return
             
             # Load and process image
@@ -703,7 +911,7 @@ class CyberCoreQC:
             
             folder = Path(folder_path)
             if not folder.exists():
-                self.console.print(f"[red]❌ Folder not found: {folder_path}")
+                self.console.print(f"[red] Folder not found: {folder_path}")
                 return
             
             # Find images
@@ -713,7 +921,7 @@ class CyberCoreQC:
                 image_files.extend(folder.glob(ext))
             
             if not image_files:
-                self.console.print(f"[red]❌ No images found in folder")
+                self.console.print(f"[red] No images found in folder")
                 return
             
             from PIL import Image
@@ -894,8 +1102,8 @@ class CyberCoreQC:
             
             elif choice == "🚪 Exit":
                 self.console.print("\n[bold cyan]═══════════════════════════════════════")
-                self.console.print("[bold yellow]   Thank you for using CyberCore-QC!")
-                self.console.print("[bold magenta]      Stay cyber. Stay secure.")
+                self.console.print("[bold yellow]   Thank you for using QualityCtrl dt!")
+                self.console.print("[bold magenta]      Github: https://github.com/Andert51")
                 self.console.print("[bold cyan]═══════════════════════════════════════\n")
                 break
 

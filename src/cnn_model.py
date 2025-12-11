@@ -96,12 +96,13 @@ class DefectCNN(nn.Module):
         )
         
         # Defect probability head (binary: defect or no defect)
+        # Note: No sigmoid here - BCEWithLogitsLoss handles it internally
         self.defect_head = nn.Sequential(
             nn.Linear(num_features, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, 1),
-            nn.Sigmoid()  # Output probability [0, 1]
+            nn.Linear(64, 1)
+            # No Sigmoid - BCEWithLogitsLoss combines sigmoid + BCE for numerical stability
         )
         
     def forward(self, x):

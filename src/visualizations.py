@@ -5,6 +5,8 @@ High-end visualization suite using Matplotlib, Seaborn, and Plotly.
 Includes CNN, FIS, GA, and system-wide visualizations.
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for thread safety
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -420,10 +422,18 @@ class VisualizationHub:
                 label='Best Fitness', color=self.colors['cyan'], linewidth=2.5, marker='o')
         ax1.plot(generations, ga_history['avg_fitness'], 
                 label='Avg Fitness', color=self.colors['yellow'], linewidth=2, marker='s')
-        ax1.plot(generations, ga_history['worst_fitness'], 
-                label='Worst Fitness', color=self.colors['red'], linewidth=1.5, marker='^', alpha=0.7)
-        ax1.fill_between(generations, ga_history['worst_fitness'], ga_history['best_fitness'],
-                        alpha=0.2, color=self.colors['cyan'])
+        
+        # Only plot worst fitness if available
+        if 'worst_fitness' in ga_history:
+            ax1.plot(generations, ga_history['worst_fitness'], 
+                    label='Worst Fitness', color=self.colors['red'], linewidth=1.5, marker='^', alpha=0.7)
+            ax1.fill_between(generations, ga_history['worst_fitness'], ga_history['best_fitness'],
+                            alpha=0.2, color=self.colors['cyan'])
+        else:
+            # Fill between avg and best if worst not available
+            ax1.fill_between(generations, ga_history['avg_fitness'], ga_history['best_fitness'],
+                            alpha=0.2, color=self.colors['cyan'])
+        
         ax1.set_xlabel('Generation', fontsize=12, fontweight='bold')
         ax1.set_ylabel('Fitness Score', fontsize=12, fontweight='bold')
         ax1.set_title('Fitness Evolution', fontsize=14, fontweight='bold', color=self.colors['yellow'])
