@@ -189,6 +189,9 @@ class DefectCNNTrainer:
             'val_defect_loss': []
         }
         
+        # Best model state storage
+        self.best_model_state = None
+        
     def train_epoch(self, train_loader: DataLoader, optimizer, epoch: int) -> Dict[str, float]:
         """Train for one epoch."""
         self.model.train()
@@ -346,10 +349,14 @@ class DefectCNNTrainer:
             # Learning rate scheduling
             scheduler.step(val_metrics['loss'])
             
-            # Save best model
+            # Save best model state in memory
             if val_metrics['accuracy'] > best_val_acc:
                 best_val_acc = val_metrics['accuracy']
-                self.save_checkpoint('best_model.pth')
+                # Keep best model state in memory
+                self.best_model_state = {
+                    'model_state_dict': self.model.state_dict().copy(),
+                    'val_acc': best_val_acc
+                }
             
             # Print epoch summary
             print(f"\nEpoch {epoch}/{epochs}")
@@ -363,11 +370,18 @@ class DefectCNNTrainer:
         return self.history
     
     def save_checkpoint(self, filepath: str):
-        """Save model checkpoint."""
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'history': self.history
-        }, filepath)
+        """Save model checkpoint (uses best model if available)."""
+        # Use best model state if available, otherwise current state
+        if hasattr(self, 'best_model_state') and self.best_model_state:
+            torch.save({
+                'model_state_dict': self.best_model_state['model_state_dict'],
+                'history': self.history
+            }, filepath)
+        else:
+            torch.save({
+                'model_state_dict': self.model.state_dict(),
+                'history': self.history
+            }, filepath)
     
     def load_checkpoint(self, filepath: str):
         """Load model checkpoint."""

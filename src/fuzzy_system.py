@@ -148,13 +148,13 @@ class FuzzyQualityController:
         
         # Determine decision
         if severity_score < 3:
-            decision = 'Accept'
+            decision = 'PASS'
             color = 'green'
         elif severity_score < 7:
-            decision = 'Rework'
+            decision = 'INSPECT'
             color = 'yellow'
         else:
-            decision = 'Reject'
+            decision = 'REJECT'
             color = 'red'
         
         return {

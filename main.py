@@ -10,6 +10,7 @@ Version: 1.0.0
 import sys
 import torch
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional
 import pickle
@@ -33,6 +34,7 @@ from cnn_model import DefectCNN, DefectCNNTrainer, DefectDataset, get_data_trans
 from fuzzy_system import FuzzyQualityController
 from genetic_algorithm import GeneticAlgorithm
 from visualizations import VisualizationHub
+from kaggle_loader import KaggleDatasetLoader
 
 
 class CyberCoreQC:
@@ -171,8 +173,14 @@ class CyberCoreQC:
         self.console.print(table)
         self.console.print()
     
-    def initialize_system(self):
-        """Initialize or load system components."""
+    def initialize_system(self, use_kaggle: bool = False, kaggle_dataset: str = 'neu'):
+        """
+        Initialize or load system components.
+        
+        Args:
+            use_kaggle: Whether to try loading Kaggle dataset
+            kaggle_dataset: Which Kaggle dataset to use ('neu', 'casting')
+        """
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -191,17 +199,37 @@ class CyberCoreQC:
             progress.update(task1, description="[cyan]Checking for dataset...")
             metadata_path = self.input_dir / 'metadata.json'
             
-            if metadata_path.exists():
+            dataset_loaded = False
+            
+            # Try loading Kaggle dataset if requested
+            if use_kaggle:
+                try:
+                    progress.update(task1, description=f"[cyan]Loading Kaggle dataset ({kaggle_dataset})...")
+                    kaggle_loader = KaggleDatasetLoader(self.workspace_dir)
+                    self.dataset_metadata = kaggle_loader.load_dataset(kaggle_dataset)
+                    
+                    if self.dataset_metadata:
+                        dataset_loaded = True
+                        self.console.print(f"✅ [green]Loaded Kaggle dataset: {kaggle_dataset}")
+                    else:
+                        self.console.print(f"⚠️ [yellow]Failed to load Kaggle dataset, falling back to synthetic")
+                except Exception as e:
+                    self.console.print(f"⚠️ [yellow]Kaggle load error: {e}, using synthetic data")
+            
+            # Try existing metadata
+            if not dataset_loaded and metadata_path.exists():
                 with open(metadata_path, 'r') as f:
                     self.dataset_metadata = json.load(f)
+                dataset_loaded = True
                 self.console.print("✅ [green]Loaded existing dataset metadata")
-            else:
-                # Generate synthetic dataset
+            
+            # Generate synthetic dataset as fallback
+            if not dataset_loaded:
                 progress.update(task1, description="[yellow]Generating synthetic dataset...")
                 generator = SyntheticDefectGenerator(img_size=(224, 224))
                 self.dataset_metadata = generator.generate_dataset(
                     self.input_dir,
-                    samples_per_class=100,  # Smaller for quick demo
+                    samples_per_class=100,
                     split_ratios=(0.7, 0.15, 0.15)
                 )
                 self.console.print("✅ [green]Generated synthetic dataset")
@@ -313,7 +341,15 @@ class CyberCoreQC:
         
         # Validation predictions for confusion matrix
         val_metrics = self.cnn_trainer.validate(self.val_loader)
-        class_names = list(self.dataset_metadata['classes'].values())
+        
+        # Handle different metadata formats
+        if 'classes' in self.dataset_metadata and isinstance(self.dataset_metadata['classes'], dict):
+            class_names = list(self.dataset_metadata['classes'].values())
+        elif 'class_names' in self.dataset_metadata:
+            class_names = self.dataset_metadata['class_names']
+        else:
+            class_names = list(self.dataset_metadata['samples'].keys())
+        
         self.viz_hub.plot_confusion_matrix(
             val_metrics['labels'],
             val_metrics['predictions'],
@@ -529,7 +565,7 @@ class CyberCoreQC:
         if action == "Save Models":
             # Save CNN
             if self.cnn_trainer:
-                cnn_path = self.models_dir / 'cnn_checkpoint.pth'
+                cnn_path = self.models_dir / 'best_cnn_model.pth'
                 self.cnn_trainer.save_checkpoint(str(cnn_path))
                 self.console.print(f"✅ [green]Saved CNN to {cnn_path}")
             
@@ -543,7 +579,7 @@ class CyberCoreQC:
         
         elif action == "Load Models":
             # Load CNN
-            cnn_path = self.models_dir / 'cnn_checkpoint.pth'
+            cnn_path = self.models_dir / 'best_cnn_model.pth'
             if cnn_path.exists() and self.cnn_trainer:
                 self.cnn_trainer.load_checkpoint(str(cnn_path))
                 self.console.print(f"✅ [green]Loaded CNN from {cnn_path}")
@@ -556,6 +592,221 @@ class CyberCoreQC:
             
             self.console.print("✅ [green]All models loaded successfully!")
     
+    def test_realtime_samples(self):
+        """Test trained model with real-time sample images."""
+        if not self.cnn_model or not self.fis:
+            self.console.print("[red]⚠️  Please initialize and train the system first!")
+            return
+        
+        self.console.print("\n" + "="*60)
+        self.console.print("[bold cyan]🧪 Real-Time Quality Control Testing")
+        self.console.print("="*60 + "\n")
+        
+        # Ask for test source
+        test_source = questionary.select(
+            "Select test image source:",
+            choices=[
+                "Test from current dataset (random samples)",
+                "Test from custom image file",
+                "Test batch from folder",
+                "← Back"
+            ],
+            style=self.custom_style
+        ).ask()
+        
+        if test_source == "← Back":
+            return
+        
+        self.cnn_model.eval()
+        transforms = get_data_transforms(img_size=224)['val']  # Use validation transforms (no augmentation)
+        
+        test_results = []
+        
+        if test_source == "Test from current dataset (random samples)":
+            # Sample random images from test set
+            num_samples = int(questionary.text(
+                "How many samples to test?",
+                default="5",
+                style=self.custom_style
+            ).ask())
+            
+            # Get random samples
+            sample_indices = np.random.choice(len(self.test_loader.dataset), min(num_samples, len(self.test_loader.dataset)), replace=False)
+            
+            for idx in sample_indices:
+                img_tensor, label, severity, img_path = self.test_loader.dataset[idx]
+                img_tensor = img_tensor.unsqueeze(0).to(self.device)
+                
+                with torch.no_grad():
+                    class_logits, defect_prob = self.cnn_model(img_tensor)
+                    pred_class = torch.argmax(class_logits, dim=1).item()
+                    defect_prob = defect_prob.item()
+                
+                # FIS prediction
+                material_fragility = np.random.uniform(0.3, 0.7)
+                fis_result = self.fis.predict(defect_prob, material_fragility)
+                
+                test_results.append({
+                    'image_path': img_path,
+                    'true_class': self.dataset_metadata['class_names'][label],
+                    'pred_class': self.dataset_metadata['class_names'][pred_class],
+                    'defect_prob': defect_prob,
+                    'severity_score': fis_result['severity_score'],
+                    'decision': fis_result['decision'],
+                    'correct': label == pred_class
+                })
+        
+        elif test_source == "Test from custom image file":
+            img_path = questionary.text(
+                "Enter image path:",
+                style=self.custom_style
+            ).ask()
+            
+            if not Path(img_path).exists():
+                self.console.print(f"[red]❌ File not found: {img_path}")
+                return
+            
+            # Load and process image
+            from PIL import Image
+            img = Image.open(img_path).convert('RGB')
+            img_tensor = transforms(img).unsqueeze(0).to(self.device)
+            
+            with torch.no_grad():
+                class_logits, defect_prob = self.cnn_model(img_tensor)
+                pred_class = torch.argmax(class_logits, dim=1).item()
+                defect_prob = defect_prob.item()
+            
+            # FIS prediction
+            material_fragility = float(questionary.text(
+                "Enter material fragility (0.0-1.0):",
+                default="0.5",
+                style=self.custom_style
+            ).ask())
+            
+            fis_result = self.fis.predict(defect_prob, material_fragility)
+            
+            test_results.append({
+                'image_path': img_path,
+                'true_class': 'Unknown',
+                'pred_class': self.dataset_metadata['class_names'][pred_class],
+                'defect_prob': defect_prob,
+                'severity_score': fis_result['severity_score'],
+                'decision': fis_result['decision'],
+                'correct': None
+            })
+        
+        elif test_source == "Test batch from folder":
+            folder_path = questionary.text(
+                "Enter folder path containing images:",
+                style=self.custom_style
+            ).ask()
+            
+            folder = Path(folder_path)
+            if not folder.exists():
+                self.console.print(f"[red]❌ Folder not found: {folder_path}")
+                return
+            
+            # Find images
+            image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.bmp']
+            image_files = []
+            for ext in image_extensions:
+                image_files.extend(folder.glob(ext))
+            
+            if not image_files:
+                self.console.print(f"[red]❌ No images found in folder")
+                return
+            
+            from PIL import Image
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                console=self.console
+            ) as progress:
+                task = progress.add_task(f"[cyan]Testing {len(image_files)} images...", total=len(image_files))
+                
+                for img_path in image_files:
+                    try:
+                        img = Image.open(img_path).convert('RGB')
+                        img_tensor = transforms(img).unsqueeze(0).to(self.device)
+                        
+                        with torch.no_grad():
+                            class_logits, defect_prob = self.cnn_model(img_tensor)
+                            pred_class = torch.argmax(class_logits, dim=1).item()
+                            defect_prob = defect_prob.item()
+                        
+                        material_fragility = np.random.uniform(0.3, 0.7)
+                        fis_result = self.fis.predict(defect_prob, material_fragility)
+                        
+                        test_results.append({
+                            'image_path': str(img_path),
+                            'true_class': 'Unknown',
+                            'pred_class': self.dataset_metadata['class_names'][pred_class],
+                            'defect_prob': defect_prob,
+                            'severity_score': fis_result['severity_score'],
+                            'decision': fis_result['decision'],
+                            'correct': None
+                        })
+                        
+                        progress.advance(task)
+                    except Exception as e:
+                        self.console.print(f"[yellow]⚠️  Failed to process {img_path.name}: {e}")
+        
+        # Display results
+        self._display_test_results(test_results)
+        
+        # Save results
+        results_file = self.results_dir / f'realtime_test_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.json'
+        with open(results_file, 'w') as f:
+            json.dump(test_results, f, indent=2)
+        
+        self.console.print(f"\n💾 [green]Results saved to: {results_file}")
+    
+    def _display_test_results(self, results: List[Dict]):
+        """Display test results in a formatted table."""
+        table = Table(title="🧪 Test Results", border_style="cyan", box=box.ROUNDED)
+        
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Image", style="cyan", no_wrap=False)
+        table.add_column("True", style="yellow")
+        table.add_column("Predicted", style="magenta")
+        table.add_column("Defect Prob", style="red")
+        table.add_column("Severity", style="orange1")
+        table.add_column("Decision", style="bold")
+        table.add_column("✓", style="green")
+        
+        for idx, result in enumerate(results, 1):
+            img_name = Path(result['image_path']).name
+            correct_mark = "✓" if result['correct'] else ("✗" if result['correct'] is False else "-")
+            correct_color = "green" if result['correct'] else ("red" if result['correct'] is False else "dim")
+            
+            decision_color = "green" if result['decision'] == "PASS" else ("red" if result['decision'] == "REJECT" else "yellow")
+            
+            table.add_row(
+                str(idx),
+                img_name[:30],
+                result['true_class'],
+                result['pred_class'],
+                f"{result['defect_prob']:.3f}",
+                f"{result['severity_score']:.2f}",
+                f"[{decision_color}]{result['decision']}[/{decision_color}]",
+                f"[{correct_color}]{correct_mark}[/{correct_color}]"
+            )
+        
+        self.console.print("\n")
+        self.console.print(table)
+        
+        # Statistics
+        if any(r['correct'] is not None for r in results):
+            accuracy = sum(1 for r in results if r['correct']) / sum(1 for r in results if r['correct'] is not None)
+            self.console.print(f"\n📊 [bold cyan]Accuracy: {accuracy*100:.2f}%")
+        
+        pass_count = sum(1 for r in results if r['decision'] == 'PASS')
+        reject_count = sum(1 for r in results if r['decision'] == 'REJECT')
+        inspect_count = sum(1 for r in results if r['decision'] == 'INSPECT')
+        
+        self.console.print(f"✅ PASS: {pass_count} | ❌ REJECT: {reject_count} | ⚠️  INSPECT: {inspect_count}")
+    
     def main_menu(self):
         """Display main interactive menu."""
         while True:
@@ -566,6 +817,7 @@ class CyberCoreQC:
                 "🔧 Initialize System / Load Data",
                 "🧠 Train CNN Model",
                 "🧬 Run Genetic Optimization",
+                "🧪 Test Model (Real-time)",
                 "📊 Visual Analysis Hub",
                 "💾 Save/Load Models",
                 "🚪 Exit"
@@ -578,7 +830,30 @@ class CyberCoreQC:
             ).ask()
             
             if choice == "🔧 Initialize System / Load Data":
-                self.initialize_system()
+                # Ask for dataset type
+                dataset_choice = questionary.select(
+                    "Select dataset source:",
+                    choices=[
+                        "🔬 Generate Synthetic Data",
+                        "📦 Load Kaggle Dataset (NEU Surface Defects)",
+                        "🏭 Load Kaggle Dataset (Casting Defects)",
+                        "📁 Use Existing Dataset",
+                        "← Back"
+                    ],
+                    style=self.custom_style
+                ).ask()
+                
+                if dataset_choice == "← Back":
+                    continue
+                elif dataset_choice == "🔬 Generate Synthetic Data":
+                    self.initialize_system(use_kaggle=False)
+                elif dataset_choice == "📦 Load Kaggle Dataset (NEU Surface Defects)":
+                    self.initialize_system(use_kaggle=True, kaggle_dataset='neu')
+                elif dataset_choice == "🏭 Load Kaggle Dataset (Casting Defects)":
+                    self.initialize_system(use_kaggle=True, kaggle_dataset='casting')
+                elif dataset_choice == "📁 Use Existing Dataset":
+                    self.initialize_system(use_kaggle=False)
+                
                 input("\nPress Enter to continue...")
             
             elif choice == "🧠 Train CNN Model":
@@ -595,6 +870,14 @@ class CyberCoreQC:
                     input("\nPress Enter to continue...")
                 else:
                     self.run_genetic_optimization()
+                    input("\nPress Enter to continue...")
+            
+            elif choice == "🧪 Test Model (Real-time)":
+                if not self.cnn_model:
+                    self.console.print("[red]⚠️  Please initialize and train system first!")
+                    input("\nPress Enter to continue...")
+                else:
+                    self.test_realtime_samples()
                     input("\nPress Enter to continue...")
             
             elif choice == "📊 Visual Analysis Hub":

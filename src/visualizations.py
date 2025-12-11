@@ -530,7 +530,18 @@ class VisualizationHub:
         
         # Class distribution
         ax1 = fig.add_subplot(gs[0, 0])
-        class_names = list(dataset_info['classes'].values())
+        
+        # Handle different metadata formats
+        if 'classes' in dataset_info and isinstance(dataset_info['classes'], dict):
+            # Synthetic dataset format: {0: 'Normal', 1: 'Scratches', ...}
+            class_names = list(dataset_info['classes'].values())
+        elif 'class_names' in dataset_info:
+            # Kaggle dataset format: ['Normal', 'Scratches', ...]
+            class_names = dataset_info['class_names']
+        else:
+            # Fallback: get from samples keys
+            class_names = list(dataset_info['samples'].keys())
+        
         class_counts = [len(dataset_info['samples'][name]) for name in class_names]
         
         bars = ax1.bar(class_names, class_counts, color=[self.colors['cyan'], self.colors['magenta'],
