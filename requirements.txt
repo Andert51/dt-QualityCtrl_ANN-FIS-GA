@@ -4,25 +4,21 @@ pandas>=2.0.0
 scipy>=1.11.0
 
 # ========================================
-# GPU-ACCELERATED DEEP LEARNING
-# ========================================
-# Para instalar PyTorch con soporte CUDA (GPU), ejecuta:
+# GPU acelerated PyTorch installation instructions:
+# For torch with CUDA 12.1 support:
+
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-#
-# IMPORTANTE: NO uses "pip install -r requirements.txt" directamente
-# Primero instala PyTorch con CUDA usando el comando de arriba
-# Luego instala el resto: pip install -r requirements.txt
-#
-# Si solo tienes CPU (sin GPU), usa:
+
+# For torch with CPU only:
 # pip install torch torchvision torchaudio
-#
-# Verificar instalación GPU:
+
+# To verify the installation, run:
 # python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
 # ========================================
 
-# Machine Learning (se instalará con PyTorch arriba)
-# torch>=2.0.0  # INSTALAR CON COMANDO CUDA DE ARRIBA
-# torchvision>=0.15.0  # INSTALAR CON COMANDO CUDA DE ARRIBA
+# Machine Learning (installed separately upward to avoid conflicts)
+# torch>=2.0.0  
+# torchvision>=0.15.0  
 scikit-learn>=1.3.0
 
 # Fuzzy Logic

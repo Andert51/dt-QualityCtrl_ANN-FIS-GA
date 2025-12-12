@@ -1,0 +1,92 @@
+[
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Scratches\\scratches_289.jpg",
+    "true_class": "Scratches",
+    "pred_class": "Scratches",
+    "defect_prob": 1.0,
+    "severity_score": 5.5466312837869305,
+    "decision": "INSPECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Patches\\patches_170.jpg",
+    "true_class": "Patches",
+    "pred_class": "Patches",
+    "defect_prob": 0.9999719858169556,
+    "severity_score": 5.198832864360543,
+    "decision": "INSPECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Rolled-in_Scale\\rolled-in_scale_205.jpg",
+    "true_class": "Rolled-in_Scale",
+    "pred_class": "Rolled-in_Scale",
+    "defect_prob": 1.0,
+    "severity_score": 5.299094100886792,
+    "decision": "INSPECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Pitted_Surface\\pitted_surface_9.jpg",
+    "true_class": "Pitted_Surface",
+    "pred_class": "Pitted_Surface",
+    "defect_prob": 0.9999997615814209,
+    "severity_score": 6.780857154069287,
+    "decision": "INSPECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Crazing\\crazing_99.jpg",
+    "true_class": "Crazing",
+    "pred_class": "Crazing",
+    "defect_prob": 0.07919502258300781,
+    "severity_score": 1.3667383153398156,
+    "decision": "PASS",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Pitted_Surface\\pitted_surface_205.jpg",
+    "true_class": "Pitted_Surface",
+    "pred_class": "Pitted_Surface",
+    "defect_prob": 1.0,
+    "severity_score": 8.973133383769202,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Patches\\patches_188.jpg",
+    "true_class": "Patches",
+    "pred_class": "Patches",
+    "defect_prob": 1.0,
+    "severity_score": 8.934563288046764,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Crazing\\crazing_107.jpg",
+    "true_class": "Crazing",
+    "pred_class": "Crazing",
+    "defect_prob": 0.0002412054454907775,
+    "severity_score": 1.011618465684359,
+    "decision": "PASS",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Patches\\patches_80.jpg",
+    "true_class": "Patches",
+    "pred_class": "Patches",
+    "defect_prob": 1.0,
+    "severity_score": 7.931463392360196,
+    "decision": "REJECT",
+    "correct": true
+  },
+  {
+    "image_path": "C:\\Users\\andre\\Core\\Eye_ofthe_Universe\\Universs\\Soft_Computing\\Projects\\PF_CtrlCalidad_ANNFISGA\\input\\dataset\\Rolled-in_Scale\\rolled-in_scale_249.jpg",
+    "true_class": "Rolled-in_Scale",
+    "pred_class": "Rolled-in_Scale",
+    "defect_prob": 0.9999998807907104,
+    "severity_score": 8.960868244061913,
+    "decision": "REJECT",
+    "correct": true
+  }
+]

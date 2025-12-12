@@ -112,8 +112,8 @@ class CyberCoreQC:
         if self.use_gpu:
             self.logger.info(f"GPU disponible: {torch.cuda.get_device_name(0)}")
         else:
-            self.logger.info("GPU no disponible, usando CPU")
         
+            self.logger.info("GPU no disponible, usando CPU")
         # Cyberpunk style for questionary
         self.custom_style = Style([
             ('qmark', 'fg:#00FFFF bold'),
