@@ -9,14 +9,14 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Status](https://img.shields.io/badge/Status-Production-brightgreen.svg)
 
-**A Cyberpunk-Themed GPU-Accelerated Industrial AI System**  
+**A GPU-Accelerated Industrial AI System**  
 *Combining CNN, Fuzzy Logic, and Genetic Algorithms for Quality Control*
 
 </div>
 
 ---
 
-## 🚀 Quick Start (GPU Edition)
+## Quick Start (GPU Edition)
 
 ### Requirements
 - **GPU:** NVIDIA GPU with CUDA support (RTX 20xx/30xx/40xx recommended)
@@ -48,24 +48,22 @@ pip install -r requirements.txt
 python main.py
 ```
 
-When prompted, select **🚀 GPU (Recomendado)** for 10-50x faster training.
-
-**📖 Detailed GPU Setup:** See [INSTALL_GPU.md](INSTALL_GPU.md)
+When prompted, select ** GPU (Recomended)** for 10x faster training.
 
 ---
 
 ## Overview
 
-**CyberCore-QC** is a cutting-edge GPU-accelerated hybrid intelligent system designed for industrial quality control. It chains three powerful AI mechanisms:
+**QualityCtrl AI LAB** is a cutting-edge GPU-accelerated hybrid intelligent system designed for industrial quality control. It chains three powerful AI mechanisms:
 
-1. **🧠 CNN (Convolutional Neural Network)**: Visual defect detection using ResNet18 backbone with FP16 mixed precision
-2. **🎛️ FIS (Fuzzy Inference System)**: Decision-making based on defect probability and material properties
-3. **🧬 GA (Genetic Algorithm)**: Automated optimization of fuzzy membership functions
+1. **CNN (Convolutional Neural Network)**: Visual defect detection using ResNet18 backbone with FP16 mixed precision
+2. **FIS (Fuzzy Inference System)**: Decision-making based on defect probability and material properties
+3. **GA (Genetic Algorithm)**: Automated optimization of fuzzy membership functions
 
 ### Key Features
 
-- **⚡ GPU Acceleration**: 10-50x faster training with CUDA + Mixed Precision (FP16)
-- **🎮 Interactive Device Selection**: Choose GPU/CPU at runtime with performance estimates
+- **GPU Acceleration**: 10-50x faster training with CUDA + Mixed Precision (FP16)
+- **Interactive Device Selection**: Choose GPU/CPU at runtime with performance estimates
 - **100% Self-Contained**: Includes synthetic data generator - runs without external datasets
 - **Cyberpunk TUI**: Rich terminal interface with neon aesthetics
 - **Advanced Visualizations**: 30+ high-quality plots using Matplotlib, Seaborn, and Plotly
@@ -75,11 +73,11 @@ When prompted, select **🚀 GPU (Recomendado)** for 10-50x faster training.
 
 ### GPU Optimizations
 
-- ✅ **Mixed Precision Training (FP16)**: 2x speedup + 50% less memory
-- ✅ **Non-blocking GPU Transfers**: Async CPU→GPU for reduced I/O wait
-- ✅ **Optimized DataLoaders**: pin_memory + adaptive batch sizing
-- ✅ **cuDNN Autotuning**: Hardware-specific convolution optimization
-- ✅ **TF32 Support**: Automatic on Ampere GPUs (RTX 30xx/40xx)
+-  **Mixed Precision Training (FP16)**: 2x speedup + 50% less memory
+-  **Non-blocking GPU Transfers**: Async CPU→GPU for reduced I/O wait
+-  **Optimized DataLoaders**: pin_memory + adaptive batch sizing
+-  **cuDNN Autotuning**: Hardware-specific convolution optimization
+-  **TF32 Support**: Automatic on Ampere GPUs (RTX 30xx/40xx)
 
 ---
 
@@ -175,15 +173,16 @@ The system provides a cyberpunk-themed interactive terminal interface:
 
 ```
 ╔══════════════════════════════════════════════╗
-║           CYBERCORE-QC MAIN MENU             ║
+║           MAIN MENU             ║
 ╚══════════════════════════════════════════════╝
 
-1. Initialize System / Load Data
+1. Initialize System / Load Data (Metal Surface Defect Dataset Recomended)
 2. Train CNN Model
 3. Run Genetic Optimization
-4. Visual Analysis Hub
-5. Save/Load Models
-6. Exit
+4. Test in Real Time the Model
+5. Visual Analysis Hub
+6. Save/Load Models
+7. Exit
 ```
 
 ### Typical Workflow
@@ -198,7 +197,7 @@ The system provides a cyberpunk-themed interactive terminal interface:
 
 ## Visualizations
 
-CyberCore-QC generates **15+ types of visualizations**:
+The system generates **15+ types of visualizations**:
 
 ### CNN Visualizations
 - **Training Curves**: Loss and accuracy over epochs
@@ -318,7 +317,7 @@ The system includes a **robust synthetic data generator** that creates realistic
 5. **Pitted Surface**: Small holes/pitting
 6. **Rolled Scale**: Oxide scale patterns
 
-### Dataset Specs
+### Dataset Specs (Synthetic Generated)
 
 - **Default Size**: 600 images (100 per class)
 - **Image Size**: 224×224 pixels
@@ -422,7 +421,9 @@ MIT License - feel free to use in academic or commercial projects.
 ## 👨‍💻 Author
 
 **QualityCtrl AI Lab**  
-*Andres Torres Ceja*
+*Gonzalez Luna Diego Josue*
+*Torres Ceja Andres*
+*Rodríguez Ornelas Carlos Gabriel*
 
 ---
 
